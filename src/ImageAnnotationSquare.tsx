@@ -17,7 +17,7 @@ export default function ImageAnnotationSquare() {
   const imageRef = useRef<HTMLImageElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [squareStart, setSquareStart] = useState<SquarePoint>();
-  const [square, setSquare] = useState<Square>();
+  const [squares, setSquares] = useState<Square[]>([]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -28,6 +28,21 @@ export default function ImageAnnotationSquare() {
       canvas.height = image.height;
     }
   }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+
+    if (context) {
+      // Clear the canvas
+      context.clearRect(0, 0, canvas!.width, canvas!.height);
+
+      // Draw each rectangle in the list
+      squares.forEach((square) => {
+        context.strokeRect(square.x, square.y, square.height, square.width);
+      });
+    }
+  }, [squares]);
 
   const startSquare = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (isDrawing == true) return;
@@ -49,6 +64,10 @@ export default function ImageAnnotationSquare() {
 
     context.clearRect(0, 0, canvas.width, canvas.height);
 
+    squares.forEach((square) => {
+      context.strokeRect(square.x, square.y, square.height, square.width);
+    });
+
     const { offsetX, offsetY } = e.nativeEvent;
     const { startX, startY } = squareStart;
 
@@ -60,16 +79,20 @@ export default function ImageAnnotationSquare() {
 
   const endSquare = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (isDrawing == false) return;
+
+    setIsDrawing(false);
     if (!squareStart) return;
 
     const { offsetX, offsetY } = e.nativeEvent;
     const { startX, startY } = squareStart;
 
-    const width = startY - offsetY;
-    const height = startX - offsetX;
+    const width = offsetY - startY;
+    const height = offsetX - startX;
 
-    setSquare({ x: startX, y: startY, width, height });
-    setIsDrawing(false);
+    setSquares((prevState) => [
+      ...prevState,
+      { x: startX, y: startY, width, height },
+    ]);
   };
 
   const clearCanvas = () => {
@@ -80,7 +103,15 @@ export default function ImageAnnotationSquare() {
     if (context) {
       context.clearRect(0, 0, canvas.width, canvas.height);
       context.beginPath();
+      setSquares([]);
     }
+  };
+
+  const undo = () => {
+    if (squares.length == 0) return;
+
+    const undoSquare = squares.slice(0, -1);
+    setSquares(undoSquare);
   };
 
   return (
@@ -96,7 +127,10 @@ export default function ImageAnnotationSquare() {
         />
       </div>
       <div className="buttons">
-        <button onClick={clearCanvas}>Clear Annotation</button>
+        <button className="undo" onClick={undo}>
+          Undo
+        </button>
+        <button onClick={clearCanvas}>Clear</button>
       </div>
     </div>
   );
